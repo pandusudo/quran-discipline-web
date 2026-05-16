@@ -2,22 +2,6 @@
 
 import { useEffect, useState, useCallback, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { Progress } from "@/components/ui/progress";
-import {
-  RefreshCw,
-  ArrowLeft,
-  ShieldCheck,
-  BookOpen,
-  Timer,
-  Music2,
-  Ban,
-  Unlock,
-  Volume2,
-} from "lucide-react";
-import Link from "next/link";
 import {
   isExtensionRuntimeAvailable,
   unlockSiteViaExtension,
@@ -29,35 +13,16 @@ import {
   type SiteConfig,
   type ExtensionSettings,
 } from "@/lib/extension-bridge";
-
-interface Verse {
-  id: number;
-  verse_number: number;
-  verse_key: string;
-  text_uthmani: string;
-  text_transliteration?: string;
-  chapter_name_simple: string;
-  chapter_id: number;
-  page_number: number;
-  juz_number: number;
-  audio: {
-    url: string;
-    segments: Array<[number, number, number, number]>;
-  };
-  translations: Array<{
-    id: number;
-    resource_id: number;
-    text: string;
-  }>;
-}
-
-interface ApiResponse {
-  success: boolean;
-  message: string;
-  data: {
-    verse: Verse;
-  };
-}
+import type { BlockedVerse, RandomVerseApiResponse } from "@/interfaces";
+import { useQuranApi } from "@/hooks/use-quran-api";
+import {
+  BlockedHeader,
+  UnlockedState,
+  VerseCard,
+  TimerIndicator,
+  FooterActions,
+} from "@/components/blocked";
+import { formatTime } from "@/lib/utils";
 
 const DEFAULT_CONFIG: SiteConfig = {
   blockMode: "timer",
@@ -71,54 +36,44 @@ const DEFAULT_SETTINGS: ExtensionSettings = {
   blockingEnabled: true,
 };
 
-const fetchRandomVerse = async (
-  settings: ExtensionSettings,
-): Promise<Verse> => {
-  const params = new URLSearchParams();
-  if (settings.showTranslation) {
-    params.append("include_translation", "true");
-  }
-  if (settings.showTransliteration) {
-    params.append("include_transliteration", "true");
-  }
-  const queryString = params.toString();
-  const url = `${process.env.NEXT_PUBLIC_BACKEND_QURAN_URL}/api/verses/random${queryString ? `?${queryString}` : ""}`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error("Failed to fetch verse");
-  const apiResponse: ApiResponse = await res.json();
-  return apiResponse.data.verse;
-};
+const SKIP_OPTIONS = { skip: true } as const;
 
 function BlockedPageContent() {
   const searchParams = useSearchParams();
   const domain = searchParams.get("blocked_site") ?? "";
   const isHaramSite = searchParams.get("is_haram_site") === "true";
-  const originalUrl = domain;
 
+  // Config & settings
   const [config, setConfig] = useState<SiteConfig>(DEFAULT_CONFIG);
   const [settings, setSettings] = useState<ExtensionSettings>(DEFAULT_SETTINGS);
   const [configLoaded, setConfigLoaded] = useState(false);
   const [focusSessionActive, setFocusSessionActive] = useState(false);
 
-  const [verse, setVerse] = useState<Verse | null>(null);
+  // Verse
+  const [verse, setVerse] = useState<BlockedVerse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
-  // Timer mode state
+  const { execute: fetchVerse } = useQuranApi<RandomVerseApiResponse>(
+    "/random-verse",
+    SKIP_OPTIONS,
+  );
+
+  // Timer mode
   const [timerLeft, setTimerLeft] = useState(DEFAULT_CONFIG.timerSeconds);
   const [timerDone, setTimerDone] = useState(false);
 
-  // Audio mode state
+  // Audio mode
   const [audioPlaying, setAudioPlaying] = useState(false);
   const [audioProgress, setAudioProgress] = useState(0);
   const [audioDone, setAudioDone] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Unlock/re-block state
+  // Unlock/re-block
   const [unlockedUntil, setUnlockedUntilState] = useState<number | null>(null);
   const [reblockLeft, setReblockLeft] = useState<number | null>(null);
 
-  // Load site config and settings from extension
+  // Load extension config & settings
   useEffect(() => {
     if (!isExtensionRuntimeAvailable()) {
       setConfigLoaded(true);
@@ -126,19 +81,16 @@ function BlockedPageContent() {
     }
 
     const loadExtensionData = async () => {
-      // Load settings
       const settingsResponse = await getSettingsFromExtension();
       if (settingsResponse.ok && settingsResponse.data) {
         setSettings(settingsResponse.data);
       }
 
-      // Check if focus session is active
       const focusResponse = await getFocusSessionViaExtension();
       if (focusResponse.ok && focusResponse.data?.isActive) {
         setFocusSessionActive(true);
       }
 
-      // Load site config if domain is available
       if (domain) {
         const configResponse = await getSiteConfigViaExtension(domain);
         if (configResponse.ok && configResponse.data) {
@@ -156,7 +108,6 @@ function BlockedPageContent() {
   const loadVerse = useCallback(async () => {
     setLoading(true);
     setError(false);
-    // Reset mode states when loading a new verse
     setTimerLeft(config.timerSeconds);
     setTimerDone(false);
     setAudioProgress(0);
@@ -167,25 +118,34 @@ function BlockedPageContent() {
       audioRef.current.currentTime = 0;
     }
     try {
-      const data = await fetchRandomVerse(settings);
-      setVerse(data);
+      const params = new URLSearchParams();
+      if (settings.showTranslation)
+        params.append("include_translation", "true");
+      if (settings.showTransliteration)
+        params.append("include_transliteration", "true");
+      const qs = params.toString();
+      const endpoint = `/random-verse${qs ? `?${qs}` : ""}`;
+      const json = await fetchVerse({ endpoint });
+      if (!json) throw new Error("No data");
+      setVerse(json.data.verse);
     } catch {
       setError(true);
     } finally {
       setLoading(false);
     }
-  }, [config.timerSeconds, settings]);
+  }, [
+    config.timerSeconds,
+    settings.showTranslation,
+    settings.showTransliteration,
+  ]);
 
-  // Check if already temporarily unlocked via extension
+  // Check existing unlock state
   useEffect(() => {
     if (!domain || !isExtensionRuntimeAvailable()) return;
-
     getUnlockStateViaExtension(domain).then((response) => {
       if (response.ok && response.data?.unlockedUntil) {
         const until = response.data.unlockedUntil;
-        if (until > Date.now()) {
-          setUnlockedUntilState(until);
-        }
+        if (until > Date.now()) setUnlockedUntilState(until);
       }
     });
   }, [domain]);
@@ -198,9 +158,8 @@ function BlockedPageContent() {
       if (left <= 0) {
         setUnlockedUntilState(null);
         setReblockLeft(null);
-        if (domain && isExtensionRuntimeAvailable()) {
+        if (domain && isExtensionRuntimeAvailable())
           clearUnlockStateViaExtension(domain);
-        }
       } else {
         setReblockLeft(left);
       }
@@ -210,11 +169,12 @@ function BlockedPageContent() {
     return () => clearInterval(id);
   }, [unlockedUntil, domain]);
 
+  // Fetch verse once config is ready
   useEffect(() => {
-    loadVerse();
-  }, [loadVerse]);
+    if (configLoaded) loadVerse();
+  }, [configLoaded, loadVerse]);
 
-  // Countdown timer for 'timer' mode (disabled during focus sessions)
+  // Countdown timer for 'timer' mode
   useEffect(() => {
     if (
       focusSessionActive ||
@@ -247,18 +207,7 @@ function BlockedPageContent() {
     unlockedUntil,
   ]);
 
-  // Audio handlers
-  const handlePlayAudio = () => {
-    if (!verse?.audio?.url || !audioRef.current) return;
-    if (audioPlaying) {
-      audioRef.current.pause();
-      setAudioPlaying(false);
-    } else {
-      audioRef.current.play();
-      setAudioPlaying(true);
-    }
-  };
-
+  // Audio event wiring
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio || !verse?.audio?.url) return;
@@ -266,9 +215,8 @@ function BlockedPageContent() {
     audio.load();
 
     const handleTimeUpdate = () => {
-      if (audio.duration) {
+      if (audio.duration)
         setAudioProgress((audio.currentTime / audio.duration) * 100);
-      }
     };
     const handleEnded = () => {
       setAudioDone(true);
@@ -284,15 +232,24 @@ function BlockedPageContent() {
     };
   }, [verse]);
 
+  const handlePlayAudio = () => {
+    if (!verse?.audio?.url || !audioRef.current) return;
+    if (audioPlaying) {
+      audioRef.current.pause();
+      setAudioPlaying(false);
+    } else {
+      audioRef.current.play();
+      setAudioPlaying(true);
+    }
+  };
+
   const handleUnlock = async () => {
     if (!domain) return;
-
     if (isExtensionRuntimeAvailable()) {
       await unlockSiteViaExtension(domain, config.unlockDurationMinutes);
     }
-
-    if (originalUrl) {
-      window.location.href = originalUrl;
+    if (domain) {
+      window.location.href = domain;
     } else {
       setUnlockedUntilState(
         Date.now() + config.unlockDurationMinutes * 60 * 1000,
@@ -300,9 +257,7 @@ function BlockedPageContent() {
     }
   };
 
-  // When focus session is active, force hard block mode
   const effectiveBlockMode = focusSessionActive ? "hard" : config.blockMode;
-
   const isUnlockable = effectiveBlockMode !== "hard";
   const canUnlock =
     effectiveBlockMode === "timer"
@@ -311,250 +266,56 @@ function BlockedPageContent() {
         ? audioDone
         : false;
 
-  const formatTime = (seconds: number) => {
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return m > 0 ? `${m}m ${s}s` : `${s}s`;
-  };
-
-  // If currently unlocked show the "unlocked" state
   if (unlockedUntil && reblockLeft !== null) {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4 py-12">
-        <div className="flex flex-col items-center gap-3 mb-10 text-center">
-          <div className="flex items-center justify-center w-14 h-14 rounded-full bg-green-50">
-            <Unlock className="w-7 h-7 text-green-600" />
-          </div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Temporarily Unlocked
-          </h1>
-          <p className="text-muted-foreground text-sm max-w-sm">
-            {domain} is unlocked for now. It will be blocked again in{" "}
-            <span className="font-semibold text-foreground">
-              {formatTime(reblockLeft)}
-            </span>
-            .
-          </p>
-        </div>
-        <div className="w-full max-w-xl">
-          <Progress
-            value={
-              ((config.unlockDurationMinutes * 60 - reblockLeft) /
-                (config.unlockDurationMinutes * 60)) *
-              100
-            }
-            className="h-1.5"
-          />
-        </div>
-        <div className="flex gap-3 mt-8">
-          <Button variant="outline" size="sm" asChild>
-            <Link href="/dashboard">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Dashboard
-            </Link>
-          </Button>
-        </div>
-      </div>
+      <UnlockedState
+        domain={domain}
+        reblockLeft={reblockLeft}
+        unlockDurationMinutes={config.unlockDurationMinutes}
+        formatTime={formatTime}
+      />
     );
   }
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4 py-12">
-      {/* Header */}
-      <div className="flex flex-col items-center gap-3 mb-10 text-center">
-        <div className="flex items-center justify-center w-14 h-14 rounded-full bg-muted">
-          {effectiveBlockMode === "hard" ? (
-            <Ban className="w-7 h-7 text-destructive" />
-          ) : (
-            <ShieldCheck className="w-7 h-7 text-muted-foreground" />
-          )}
-        </div>
-        <h1 className="text-2xl font-semibold tracking-tight">Site Blocked</h1>
-        <p className="text-muted-foreground text-sm max-w-sm">
-          {isHaramSite
-            ? `Gambling and porn may feel small in the moment, but they leave أثر (impact) on the heart.
-Choose what you would be proud to meet Allah with.`
-            : focusSessionActive
-              ? "Focus session is active. This site is fully blocked until your session ends."
-              : effectiveBlockMode === "hard"
-                ? "This site is fully blocked. Take a moment to reflect on this verse."
-                : effectiveBlockMode === "audio"
-                  ? "Listen to the full ayah to unlock this site temporarily."
-                  : `Wait ${config.timerSeconds} seconds to unlock this site temporarily.`}
-        </p>
-        {domain && (
-          <Badge variant="outline" className="text-xs font-mono">
-            {domain}
-          </Badge>
-        )}
-      </div>
+      <BlockedHeader
+        effectiveBlockMode={effectiveBlockMode}
+        isHaramSite={isHaramSite}
+        focusSessionActive={focusSessionActive}
+        timerSeconds={config.timerSeconds}
+        domain={domain}
+      />
 
-      {/* Verse Card */}
-      <div className="w-full max-w-xl rounded-2xl border bg-card shadow-sm p-8">
-        {loading && (
-          <div className="flex flex-col items-center gap-4 py-6">
-            <div className="w-8 h-8 rounded-full border-2 border-muted-foreground border-t-transparent animate-spin" />
-            <p className="text-sm text-muted-foreground">Fetching a verse…</p>
-          </div>
-        )}
+      <VerseCard
+        loading={loading}
+        error={error}
+        verse={verse}
+        settings={settings}
+        effectiveBlockMode={effectiveBlockMode}
+        audioRef={audioRef}
+        audioPlaying={audioPlaying}
+        audioDone={audioDone}
+        audioProgress={audioProgress}
+        onPlayAudio={handlePlayAudio}
+        onLoadVerse={loadVerse}
+      />
 
-        {error && !loading && (
-          <div className="flex flex-col items-center gap-4 py-6 text-center">
-            <p className="text-sm text-destructive">
-              Could not load a verse. Please check your connection.
-            </p>
-            <Button variant="outline" size="sm" onClick={loadVerse}>
-              <RefreshCw className="w-4 h-4 mr-2" />
-              Try Again
-            </Button>
-          </div>
-        )}
-
-        {verse && !loading && (
-          <div className="flex flex-col gap-6">
-            {/* Surah badge */}
-            <div className="flex items-center gap-2">
-              <BookOpen className="w-4 h-4 text-muted-foreground" />
-              <Badge variant="secondary" className="text-xs font-medium">
-                {verse.chapter_name_simple} &mdash; {verse.verse_key}
-              </Badge>
-            </div>
-
-            {/* Arabic text */}
-            <p
-              className="text-right text-3xl leading-loose font-arabic text-foreground"
-              dir="rtl"
-              lang="ar"
-            >
-              {verse.text_uthmani}
-            </p>
-
-            {/* Transliteration */}
-            {settings.showTransliteration && verse.text_transliteration && (
-              <>
-                <Separator />
-                <p className="text-sm text-muted-foreground leading-relaxed font-medium">
-                  {verse.text_transliteration}
-                </p>
-              </>
-            )}
-
-            {/* Translation */}
-            {settings.showTranslation && (
-              <>
-                <Separator />
-                <p className="text-sm text-muted-foreground leading-relaxed italic">
-                  &ldquo;
-                  {verse.translations[0]?.text || "Translation not available"}
-                  &rdquo;
-                </p>
-              </>
-            )}
-
-            {/* Audio player — shown for audio mode */}
-            {effectiveBlockMode === "audio" && verse.audio?.url && (
-              <div className="space-y-3">
-                <audio ref={audioRef} preload="metadata" />
-                <div className="flex items-center gap-3">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handlePlayAudio}
-                    disabled={audioDone}
-                    className="gap-2"
-                  >
-                    {audioPlaying ? (
-                      <>
-                        <Volume2 className="w-4 h-4 animate-pulse text-primary" />
-                        Listening…
-                      </>
-                    ) : audioDone ? (
-                      <>
-                        <Music2 className="w-4 h-4 text-green-600" />
-                        Listened
-                      </>
-                    ) : (
-                      <>
-                        <Music2 className="w-4 h-4" />
-                        Play Ayah
-                      </>
-                    )}
-                  </Button>
-                  <div className="flex-1">
-                    <Progress value={audioProgress} className="h-1.5" />
-                  </div>
-                  <span className="text-xs text-muted-foreground w-8 text-right">
-                    {Math.round(audioProgress)}%
-                  </span>
-                </div>
-                {!audioDone && (
-                  <p className="text-xs text-muted-foreground">
-                    Listen to the full ayah to unlock the button below.
-                  </p>
-                )}
-              </div>
-            )}
-
-            {/* Refresh */}
-            <div className="flex justify-end">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={loadVerse}
-                className="text-muted-foreground"
-              >
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Another verse
-              </Button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Timer countdown indicator */}
       {effectiveBlockMode === "timer" && !loading && verse && !timerDone && (
-        <div className="mt-6 flex flex-col items-center gap-2 w-full max-w-xl">
-          <Progress
-            value={
-              ((config.timerSeconds - timerLeft) / config.timerSeconds) * 100
-            }
-            className="h-1.5"
-          />
-          <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-            <Timer className="w-3.5 h-3.5" />
-            Unlock available in{" "}
-            <span className="font-semibold tabular-nums">{timerLeft}s</span>
-          </p>
-        </div>
+        <TimerIndicator
+          timerSeconds={config.timerSeconds}
+          timerLeft={timerLeft}
+        />
       )}
 
-      {/* Footer actions */}
-      <div className="flex flex-wrap gap-3 mt-8 justify-center">
-        <Button variant="outline" size="sm" asChild>
-          <Link href="/dashboard">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Dashboard
-          </Link>
-        </Button>
-        <Button variant="outline" size="sm" asChild>
-          <Link href="/blocked-sites">Manage Block List</Link>
-        </Button>
-        {isUnlockable && (
-          <Button
-            size="sm"
-            disabled={!canUnlock}
-            onClick={handleUnlock}
-            className="gap-2"
-          >
-            <Unlock className="w-4 h-4" />
-            {canUnlock
-              ? `Unlock for ${config.unlockDurationMinutes} min`
-              : effectiveBlockMode === "timer"
-                ? `Unlock in ${timerLeft}s`
-                : "Listen to unlock"}
-          </Button>
-        )}
-      </div>
+      <FooterActions
+        isUnlockable={isUnlockable}
+        canUnlock={canUnlock}
+        effectiveBlockMode={effectiveBlockMode}
+        timerLeft={timerLeft}
+        unlockDurationMinutes={config.unlockDurationMinutes}
+        onUnlock={handleUnlock}
+      />
     </div>
   );
 }

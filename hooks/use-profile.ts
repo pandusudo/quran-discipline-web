@@ -36,22 +36,7 @@ export const useProfile = (
     setIsLoading(true);
     setError(null);
 
-    const baseUrl = process.env.NEXT_PUBLIC_BACKEND_QURAN_URL ?? "";
-
-    fetch("/api/auth/me")
-      .then(
-        (res) =>
-          res.json() as Promise<{
-            authenticated: boolean;
-            token: string | null;
-          }>,
-      )
-      .then(({ token }) => {
-        if (!token) throw new Error("No access token available");
-        return fetch(`${baseUrl}/api/qf-profile`, {
-          headers: { "x-auth-token": token },
-        });
-      })
+    fetch("/api/auth/qf-profile")
       .then((res) => {
         if (!res.ok) throw new Error("Failed to fetch profile");
         return res.json() as Promise<QFProfile>;

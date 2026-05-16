@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { ChevronRight } from "lucide-react";
-import type { Surah } from "@/interfaces/quran-interfaces";
+import type { Surah } from "@/interfaces";
 
 interface SurahListCardProps {
   surah: Surah;
@@ -19,7 +19,7 @@ export function SurahListCard({
   return (
     <Link
       href={`/quran/${startPage}`}
-      className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left transition-colors ${
+      className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left transition-colors border ${
         isSelected ? "bg-accent text-accent-foreground" : "hover:bg-muted"
       }`}
     >

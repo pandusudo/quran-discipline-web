@@ -1,17 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, BookOpen, AlertCircle, RefreshCw } from "lucide-react";
-import { useApi } from "@/hooks/use-api";
-import { SurahListCard, SurahListCardSkeleton } from "@/components/ui/quran";
-import type {
-  Surah,
-  ChaptersResponse,
-  QuranFilterOptions,
-} from "@/interfaces/quran-interfaces";
+import { useQuranApi } from "@/hooks/use-quran-api";
+import { SurahListCard, SurahListPageSkeleton } from "@/components/quran";
+import type { Surah, ChaptersResponse, QuranFilterOptions } from "@/interfaces";
 
 export default function QuranPage() {
   const [filter, setFilter] = useState<QuranFilterOptions>({
@@ -24,8 +20,9 @@ export default function QuranPage() {
     data: chaptersData,
     isLoading,
     error,
-    refetch,
-  } = useApi<ChaptersResponse>("/chapters");
+    refetch: fetchChapters,
+  } = useQuranApi<ChaptersResponse>("/chapters");
+
   const surahData = chaptersData?.chapters || [];
 
   const handleFilterChange = (newFilter: QuranFilterOptions) => {
@@ -90,7 +87,7 @@ export default function QuranPage() {
                 {error || "An error occurred while fetching the Quran data."}
               </p>
             </div>
-            <Button variant="outline" size="sm" onClick={() => refetch()}>
+            <Button variant="outline" size="sm" onClick={() => fetchChapters()}>
               <RefreshCw className="size-4 mr-2" />
               Retry
             </Button>
@@ -99,17 +96,7 @@ export default function QuranPage() {
       )}
 
       {/* Loading State */}
-      {isLoading && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {Array.from({ length: 12 }).map((_, i) => (
-            <Card key={i} className="overflow-hidden">
-              <CardContent className="p-2">
-                <SurahListCardSkeleton />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+      {isLoading && <SurahListPageSkeleton />}
 
       {/* Surah Grid */}
       {!isLoading && !error && (
@@ -145,14 +132,7 @@ export default function QuranPage() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {filteredSurahs.map((surah) => (
-                <Card
-                  key={surah.id}
-                  className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
-                >
-                  <CardContent className="p-2">
-                    <SurahListCard surah={surah} />
-                  </CardContent>
-                </Card>
+                <SurahListCard key={surah.id} surah={surah} />
               ))}
             </div>
           )}

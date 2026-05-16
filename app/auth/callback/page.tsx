@@ -12,7 +12,7 @@ export default function AuthCallbackPage() {
     const code = searchParams.get("code");
 
     if (!code) {
-      router.replace("/login");
+      router.replace("/dashboard");
       return;
     }
 
@@ -26,12 +26,9 @@ export default function AuthCallbackPage() {
           return;
         }
 
-        const url = `${process.env.NEXT_PUBLIC_BACKEND_QURAN_URL}/api/token-exchange`;
-
-        const response = await fetch(url, {
+        const response = await fetch("/api/auth/token-exchange", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          credentials: "include",
           body: JSON.stringify({
             code,
             redirect_uri: redirectUri,
@@ -54,15 +51,6 @@ export default function AuthCallbackPage() {
           return;
         }
 
-        await fetch("/api/auth/set-token", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            access_token: data.access_token,
-            id_token: data.id_token,
-          }),
-        });
-
         sessionStorage.removeItem("pkce_code_verifier");
 
         router.replace("/dashboard");
@@ -83,8 +71,8 @@ export default function AuthCallbackPage() {
             Authentication Failed
           </div>
           <p className="text-muted-foreground text-sm">{error}</p>
-          <a href="/login" className="text-primary underline text-sm">
-            Back to login
+          <a href="/dashboard" className="text-primary underline text-sm">
+            Back to dashboard
           </a>
         </div>
       </main>

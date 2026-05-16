@@ -27,6 +27,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const navItems = [
   { title: "Overview", href: "/dashboard", icon: LayoutDashboard },
@@ -39,19 +40,36 @@ export function AppSidebar() {
   const pathname = usePathname();
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const { isAuthenticated } = useAuth();
-  const { profile } = useProfile(isAuthenticated);
+  const { isAuthenticated, error: authError } = useAuth();
+  const { profile, isLoading: isProfileLoading } = useProfile(isAuthenticated);
 
   const handleLogin = async () => {
     setIsLoggingIn(true);
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_BACKEND_QURAN_URL ?? "";
-      const response = await fetch(`${baseUrl}/api/oauth`);
-      const data = await response.json();
-      console.log("Auth response:", data);
+      const response = await fetch("/api/auth/oauth");
+
+      if (!response.ok) {
+        throw new Error(
+          `Failed to fetch authorization URI (${response.status})`,
+        );
+      }
+
+      const data = (await response.json()) as {
+        authorizationUri?: string;
+        pkce?: { state: string; nonce: string; codeVerifier: string };
+      };
+
+      if (!data.authorizationUri) {
+        throw new Error("No authorizationUri returned from /api/auth/oauth");
+      }
+
+      if (data.pkce?.codeVerifier) {
+        sessionStorage.setItem("pkce_code_verifier", data.pkce.codeVerifier);
+      }
+
+      window.location.href = data.authorizationUri;
     } catch (error) {
       console.error("Login error:", error);
-    } finally {
       setIsLoggingIn(false);
     }
   };
@@ -59,31 +77,19 @@ export function AppSidebar() {
   const handleLogout = async () => {
     setIsLoggingOut(true);
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_BACKEND_QURAN_URL ?? "";
-
-      // Get id_token for logout
-      const tokenResponse = await fetch("/api/auth/id-token");
-      const tokenData = await tokenResponse.json();
-      const idToken = tokenData.id_token;
-
-      const logoutUrl = new URL(`${baseUrl}/api/logout`);
-      if (idToken) {
-        logoutUrl.searchParams.set("id_token", idToken);
-      }
-
-      const response = await fetch(logoutUrl.toString(), {
+      const response = await fetch(`/api/auth/logout`, {
         method: "GET",
         credentials: "include",
       });
+
       const data = await response.json();
-      await fetch("/api/logout", { method: "POST" });
       if (data.logoutUrl) {
         window.location.href = data.logoutUrl;
       } else {
         window.location.reload();
       }
     } catch (error) {
-      console.error("Logout error:", error);
+      console.error("Logout error:", `${error}`);
     } finally {
       setIsLoggingOut(false);
     }
@@ -102,7 +108,7 @@ export function AppSidebar() {
             >
               <div className="flex shrink-0 items-center justify-center rounded-[10px] size-8 bg-sidebar-accent">
                 <BookMarked
-                  className="shrink-0 size-[16px] text-sidebar-primary"
+                  className="shrink-0 size-4 text-sidebar-primary"
                   style={{ strokeWidth: 1.75 }}
                 />
               </div>
@@ -168,6 +174,36 @@ export function AppSidebar() {
       {/* ── Footer — user section ───────────────────── */}
       <SidebarFooter className="border-t border-sidebar-border px-3 py-3">
         <SidebarMenu className="gap-1">
+          {/* Auth error */}
+          {authError && (
+            <SidebarMenuItem>
+              <div className="flex items-center gap-2 px-3 py-2.5 rounded-[6px] bg-destructive/10">
+                <span className="text-xs text-destructive leading-snug group-data-[collapsible=icon]:hidden">
+                  Could not reach server. Please refresh.
+                </span>
+                <span className="text-destructive group-data-[collapsible=icon]:block hidden text-base">
+                  !
+                </span>
+              </div>
+            </SidebarMenuItem>
+          )}
+
+          {/* Loading skeleton */}
+          {isAuthenticated === null && !authError && (
+            <SidebarMenuItem>
+              <div className="flex items-center gap-3 px-3 py-2.5">
+                <Skeleton className="size-9 rounded-full shrink-0" />
+                <div className="flex flex-col gap-1.5 flex-1 group-data-[collapsible=icon]:hidden">
+                  <Skeleton className="h-3.5 w-24 rounded" />
+                  <Skeleton className="h-3 w-16 rounded" />
+                </div>
+              </div>
+              <div className="px-3 pb-1 group-data-[collapsible=icon]:hidden">
+                <Skeleton className="h-10 w-full rounded-[6px]" />
+              </div>
+            </SidebarMenuItem>
+          )}
+
           {isAuthenticated === false && (
             <SidebarMenuItem>
               <SidebarMenuButton
@@ -192,37 +228,49 @@ export function AppSidebar() {
                   className="h-auto rounded-[10px] px-3 py-2.5 transition-all duration-150 hover:bg-sidebar-accent"
                 >
                   <Link href="/settings" className="flex items-center gap-3">
-                    <Avatar className="size-9 shrink-0 rounded-full">
-                      {profile?.avatarUrls?.small && (
-                        <AvatarImage
-                          src={profile.avatarUrls.small}
-                          alt={profile.username ?? "User avatar"}
-                        />
-                      )}
-                      <AvatarFallback className="rounded-full text-xs font-medium bg-sidebar-accent text-sidebar-primary">
-                        {profile
-                          ? (
-                              profile.firstName?.[0] ??
-                              profile.username?.[0] ??
-                              "U"
-                            ).toUpperCase()
-                          : "U"}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex min-w-0 flex-col leading-tight">
-                      <span className="truncate text-sm font-medium text-sidebar-foreground">
-                        {profile
-                          ? profile.firstName && profile.lastName
-                            ? `${profile.firstName} ${profile.lastName}`
-                            : profile.username
-                          : "User"}
-                      </span>
-                      <span className="truncate text-[11px] text-sidebar-foreground/60">
-                        {profile?.username
-                          ? `@${profile.username}`
-                          : "View settings"}
-                      </span>
-                    </div>
+                    {isProfileLoading ? (
+                      <>
+                        <Skeleton className="size-9 rounded-full shrink-0" />
+                        <div className="flex flex-col gap-1.5 flex-1 group-data-[collapsible=icon]:hidden">
+                          <Skeleton className="h-3.5 w-24 rounded" />
+                          <Skeleton className="h-3 w-16 rounded" />
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <Avatar className="size-9 shrink-0 rounded-full">
+                          {profile?.avatarUrls?.small && (
+                            <AvatarImage
+                              src={profile.avatarUrls.small}
+                              alt={profile.username ?? "User avatar"}
+                            />
+                          )}
+                          <AvatarFallback className="rounded-full text-xs font-medium bg-sidebar-accent text-sidebar-primary">
+                            {profile
+                              ? (
+                                  profile.firstName?.[0] ??
+                                  profile.username?.[0] ??
+                                  "U"
+                                ).toUpperCase()
+                              : "U"}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex min-w-0 flex-col leading-tight">
+                          <span className="truncate text-sm font-medium text-sidebar-foreground">
+                            {profile
+                              ? profile.firstName && profile.lastName
+                                ? `${profile.firstName} ${profile.lastName}`
+                                : profile.username
+                              : "User"}
+                          </span>
+                          <span className="truncate text-[11px] text-sidebar-foreground/60">
+                            {profile?.username
+                              ? `@${profile.username}`
+                              : "View settings"}
+                          </span>
+                        </div>
+                      </>
+                    )}
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

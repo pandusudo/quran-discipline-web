@@ -26,12 +26,15 @@ export function useBlockedSites() {
   const [sites, setSites] = useState<BlockedSite[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [extensionAvailable, setExtensionAvailable] = useState(true);
 
   const loadSites = useCallback(async () => {
     if (!isExtensionRuntimeAvailable()) {
-      setError("Extension is not available. Please install the extension.");
+      setExtensionAvailable(false);
+      setLoading(false);
       return;
     }
+    setExtensionAvailable(true);
 
     const response = await fetchBlockedSitesFromExtension();
     if (response.ok) {
@@ -162,6 +165,7 @@ export function useBlockedSites() {
     sites,
     loading,
     error,
+    extensionAvailable,
     toggleSite,
     deleteSite,
     addSite,

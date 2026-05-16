@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Play, Pause, Volume2 } from "lucide-react";
-import type { Ayah } from "@/interfaces/quran-interfaces";
+import type { Ayah } from "@/interfaces";
 
 interface AyahCardProps {
   ayah: Ayah;

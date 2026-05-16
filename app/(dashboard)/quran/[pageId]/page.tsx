@@ -4,11 +4,11 @@ import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ChevronLeft } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
-import { AyahCard } from "@/components/ui/quran/ayah-card";
-import { QuranPagination } from "@/components/ui/quran/quran-pagination";
-import { useApi } from "@/hooks/use-api";
-import type { Ayah, VerseResponse } from "@/interfaces/quran-interfaces";
+import { PageDetailSkeleton } from "@/components/quran/loading-skeletons";
+import { AyahCard } from "@/components/quran/ayah-card";
+import { QuranPagination } from "@/components/quran/quran-pagination";
+import { useQuranApi } from "@/hooks/use-quran-api";
+import type { Ayah, VersesByPageResponse } from "@/interfaces";
 
 export default function PageDetailPage() {
   const params = useParams();
@@ -19,7 +19,7 @@ export default function PageDetailPage() {
     data: versesData,
     isLoading,
     error,
-  } = useApi<VerseResponse>(`/verses/page/${pageId}`);
+  } = useQuranApi<VersesByPageResponse>(`/verses/page/${pageId}`);
   const pageAyahs = versesData?.verses || [];
   const totalPages = 604;
 
@@ -37,33 +37,7 @@ export default function PageDetailPage() {
           </Button>
         </div>
         <main className="flex-1 overflow-auto container mx-auto p-6">
-          <div className="space-y-6">
-            {/* Surah Card Skeleton */}
-            <Card className="p-6 bg-linear-to-r from-primary/5 to-primary/5 mb-4">
-              <div className="flex items-center justify-between">
-                <Skeleton className="h-6 w-32" />
-                <Skeleton className="h-5 w-20" />
-              </div>
-            </Card>
-
-            {/* Ayahs Skeleton */}
-            <Card className="p-8">
-              <div className="space-y-6">
-                {[...Array(5)].map((_, i) => (
-                  <div key={i} className="border-b pb-4 last:border-b-0">
-                    <div className="flex gap-4">
-                      <Skeleton className="h-8 w-8 rounded-full shrink-0" />
-                      <div className="flex-1 space-y-3">
-                        <Skeleton className="h-6 w-full" />
-                        <Skeleton className="h-4 w-5/6" />
-                        <Skeleton className="h-4 w-1/3" />
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          </div>
+          <PageDetailSkeleton />
         </main>
       </div>
     );

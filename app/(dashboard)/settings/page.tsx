@@ -45,7 +45,8 @@ const blockingSettingsConfig: SettingToggle[] = [
   {
     id: "blockingEnabled",
     label: "Enable blocking",
-    description: "Redirect to Quran when visiting blocked sites.",
+    description:
+      "Redirect to Quran when visiting blocked sites. If enabled, it will automatically blocks all haram websites including NSFW, gambling, and other harmful sites.",
   },
 ];
 

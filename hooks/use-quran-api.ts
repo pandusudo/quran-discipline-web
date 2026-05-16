@@ -1,20 +1,18 @@
 import { useEffect, useState, useCallback } from "react";
 
 export const hitApi = async (apiPath: string, init?: RequestInit) => {
-  const f = async () =>
-    await fetch(`http://localhost:3001/api${apiPath}`, {
-      ...init,
-      headers: {
-        ...init?.headers,
-      },
-      credentials: "include",
-    });
-  const resp = await f();
+  const response = await fetch(`/api/quran${apiPath}`, {
+    ...init,
+    headers: {
+      ...init?.headers,
+    },
+    credentials: "include",
+  });
 
-  return resp;
+  return response;
 };
 
-interface UseApiOptions {
+interface UseQuranApiOptions {
   skip?: boolean;
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: any;
@@ -23,11 +21,11 @@ interface UseApiOptions {
   initialLoading?: boolean;
 }
 
-interface ExecuteOptions extends UseApiOptions {
+interface ExecuteOptions extends UseQuranApiOptions {
   endpoint?: string;
 }
 
-interface UseApiReturn<T> {
+interface UseQuranApiReturn<T> {
   data: T | null;
   isLoading: boolean;
   error: string | null;
@@ -35,10 +33,10 @@ interface UseApiReturn<T> {
   execute: (options?: Partial<ExecuteOptions>) => Promise<T | null>;
 }
 
-export function useApi<T>(
+export function useQuranApi<T>(
   endpoint: string,
-  options?: UseApiOptions,
-): UseApiReturn<T> {
+  options?: UseQuranApiOptions,
+): UseQuranApiReturn<T> {
   const [data, setData] = useState<T | null>(null);
   const [isLoading, setIsLoading] = useState(options?.initialLoading ?? true);
   const [error, setError] = useState<string | null>(null);
@@ -78,17 +76,15 @@ export function useApi<T>(
         }
 
         const response = await hitApi(targetEndpoint, requestOptions);
-        console.log("response", response);
 
         if (response.ok) {
           const result = await response.json();
-          const responseData = result.data || null;
+          const responseData = result || null;
+
           setData(responseData);
           return responseData;
         } else {
-          const errorMessage = `Failed to ${
-            mergedOptions.method || "GET"
-          } data`;
+          const errorMessage = `Failed to ${mergedOptions.method || "GET"} data`;
           setError(errorMessage);
           return null;
         }
@@ -99,7 +95,6 @@ export function useApi<T>(
         console.error(`Error with ${targetEndpoint}:`, err);
         return null;
       } finally {
-        console.log("here");
         setIsLoading(false);
       }
     },
@@ -107,7 +102,6 @@ export function useApi<T>(
   );
 
   useEffect(() => {
-    console.log("check skip", options?.skip);
     if (!options?.skip) {
       fetchData();
     }

@@ -12,12 +12,15 @@ export function useBlockHistory() {
   const [history, setHistory] = useState<BlockHistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [extensionAvailable, setExtensionAvailable] = useState(true);
 
   const loadHistory = useCallback(async () => {
     if (!isExtensionRuntimeAvailable()) {
-      setError("Extension is not available. Please install the extension.");
+      setExtensionAvailable(false);
+      setLoading(false);
       return;
     }
+    setExtensionAvailable(true);
 
     const response = await fetchBlockHistoryFromExtension();
     if (response.ok) {
@@ -49,5 +52,5 @@ export function useBlockHistory() {
     }
   }, []);
 
-  return { history, loading, error, clearHistory };
+  return { history, loading, error, extensionAvailable, clearHistory };
 }
