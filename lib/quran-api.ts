@@ -57,7 +57,6 @@ export const fetchQuranApi = async <T>(
       throw new Error("Failed to obtain access token");
     }
 
-    // Default: cache GET responses for 24 hours. Callers can override via fetchOptions.
     const defaultCacheOptions: Pick<RequestInit, "next"> =
       method === "GET" ? { next: { revalidate: 86400 } } : {};
 

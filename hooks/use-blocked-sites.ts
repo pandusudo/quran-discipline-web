@@ -9,6 +9,7 @@ import {
   toggleSiteViaExtension,
   updateSiteViaExtension,
 } from "@/lib/extension-bridge";
+import { dbDeleteSite, dbUpsertSite } from "@/hooks/use-sync";
 
 export interface BlockedSite {
   id: string;
@@ -20,9 +21,11 @@ export interface BlockedSite {
   blockMode: "timer" | "audio" | "hard";
   timerSeconds: number;
   unlockDurationMinutes: number;
+  /** ISO timestamp of the last modification — used for sync conflict detection */
+  lastModified?: string;
 }
 
-export function useBlockedSites() {
+export function useBlockedSites(isAuthenticated?: boolean | null) {
   const [sites, setSites] = useState<BlockedSite[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -61,8 +64,17 @@ export function useBlockedSites() {
 
       const response = await toggleSiteViaExtension(id);
       if (response.ok) {
-        if (Array.isArray(response.data)) {
-          setSites(response.data);
+        const updated = Array.isArray(response.data) ? response.data : null;
+        if (updated) {
+          setSites(updated);
+          if (isAuthenticated) {
+            const toggled = updated.find((s) => s.id === id);
+            if (toggled)
+              void dbUpsertSite({
+                ...toggled,
+                lastModified: new Date().toISOString(),
+              });
+          }
         } else {
           await loadSites();
         }
@@ -70,7 +82,7 @@ export function useBlockedSites() {
         setError(response.error ?? "Failed to toggle site.");
       }
     },
-    [loadSites],
+    [isAuthenticated, loadSites],
   );
 
   const deleteSite = useCallback(
@@ -87,11 +99,12 @@ export function useBlockedSites() {
         } else {
           await loadSites();
         }
+        if (isAuthenticated) void dbDeleteSite(id);
       } else {
         setError(response.error ?? "Failed to delete site.");
       }
     },
-    [loadSites],
+    [isAuthenticated, loadSites],
   );
 
   const addSite = useCallback(
@@ -120,8 +133,17 @@ export function useBlockedSites() {
         unlockDurationMinutes,
       );
       if (response.ok) {
-        if (Array.isArray(response.data)) {
-          setSites(response.data);
+        const updated = Array.isArray(response.data) ? response.data : null;
+        if (updated) {
+          setSites(updated);
+          if (isAuthenticated) {
+            const added = updated.find((s) => s.domain === normalized);
+            if (added)
+              void dbUpsertSite({
+                ...added,
+                lastModified: new Date().toISOString(),
+              });
+          }
         } else {
           await loadSites();
         }
@@ -129,7 +151,7 @@ export function useBlockedSites() {
         setError(response.error ?? "Failed to add site.");
       }
     },
-    [loadSites],
+    [isAuthenticated, loadSites],
   );
 
   const updateSiteConfig = useCallback(
@@ -149,8 +171,17 @@ export function useBlockedSites() {
 
       const response = await updateSiteViaExtension(id, updates);
       if (response.ok) {
-        if (Array.isArray(response.data)) {
-          setSites(response.data);
+        const updated = Array.isArray(response.data) ? response.data : null;
+        if (updated) {
+          setSites(updated);
+          if (isAuthenticated) {
+            const changed = updated.find((s) => s.id === id);
+            if (changed)
+              void dbUpsertSite({
+                ...changed,
+                lastModified: new Date().toISOString(),
+              });
+          }
         } else {
           await loadSites();
         }
@@ -158,7 +189,7 @@ export function useBlockedSites() {
         setError(response.error ?? "Failed to update site.");
       }
     },
-    [loadSites],
+    [isAuthenticated, loadSites],
   );
 
   return {

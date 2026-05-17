@@ -1,0 +1,85 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id         String   @id @default(cuid())
+  externalId String   @unique 
+  email      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  blockedSites       BlockedSite[]
+  blockHistory       BlockHistory[]
+  extensionSettings  ExtensionSettings?
+
+  @@map("users")
+}
+
+model BlockedSite {
+  id                   String   @id 
+  userId               String
+  domain               String
+  category             String
+  enabled              Boolean  @default(true)
+  addedAt              DateTime
+  blockedCount         Int      @default(0)
+  blockMode            BlockMode @default(timer)
+  timerSeconds         Int      @default(30)
+  unlockDurationMinutes Int     @default(5)
+  lastModified         DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, domain])
+  @@map("blocked_sites")
+}
+
+enum BlockMode {
+  timer
+  audio
+  hard
+}
+
+model BlockHistory {
+  id        String          @id 
+  userId    String
+  domain    String
+  url       String
+  timestamp DateTime
+  context   BlockContext    @default(standard)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("block_history")
+}
+
+enum BlockContext {
+  standard
+  focus
+}
+
+model ExtensionSettings {
+  id                   String   @id @default(cuid())
+  userId               String   @unique
+  showTranslation      Boolean  @default(true)
+  showTransliteration  Boolean  @default(false)
+  blockingEnabled      Boolean  @default(true)
+  lastModified         DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("extension_settings")
+}

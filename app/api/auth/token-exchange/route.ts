@@ -1,16 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { saveAccessToken, saveIdToken } from "@/lib/auth";
-
-const decodeJwtPayload = (token: string): Record<string, unknown> | null => {
-  try {
-    const payload = token.split(".")[1];
-    if (!payload) return null;
-    const decoded = Buffer.from(payload, "base64url").toString("utf-8");
-    return JSON.parse(decoded) as Record<string, unknown>;
-  } catch {
-    return null;
-  }
-};
+import { decodeJwtPayload, resolveUser } from "@/lib/user";
 
 export async function POST(request: NextRequest) {
   const body = (await request.json()) as {
@@ -70,7 +60,15 @@ export async function POST(request: NextRequest) {
     await saveIdToken(id_token);
   }
 
-  const user = id_token ? decodeJwtPayload(id_token) : null;
+  const idPayload = id_token ? decodeJwtPayload(id_token) : null;
+
+  // Upsert user in DB — determines registration vs. login
+  const resolvedUser = idPayload?.sub
+    ? await resolveUser(
+        idPayload.sub as string,
+        (idPayload.email as string | undefined) ?? null,
+      )
+    : null;
 
   return NextResponse.json({
     access_token,
@@ -78,6 +76,7 @@ export async function POST(request: NextRequest) {
     token_type,
     expires_in,
     refresh_token,
-    user,
+    user: idPayload,
+    isNewUser: resolvedUser?.isNewUser ?? null,
   });
 }
