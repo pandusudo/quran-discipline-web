@@ -8,7 +8,20 @@ export interface BlockHistoryEntry {
   context: "standard" | "focus";
 }
 
-const EXTENSION_ID = process.env.NEXT_PUBLIC_EXTENSION_ID ?? "";
+const ENV_EXTENSION_ID = process.env.NEXT_PUBLIC_EXTENSION_ID ?? "";
+
+function getCookieValue(name: string): string {
+  if (typeof document === "undefined") return "";
+  const match = document.cookie
+    .split("; ")
+    .find((row) => row.startsWith(`${name}=`));
+  return match ? decodeURIComponent(match.split("=")[1]) : "";
+}
+
+function getExtensionId(): string {
+  if (ENV_EXTENSION_ID.trim().length > 0) return ENV_EXTENSION_ID.trim();
+  return getCookieValue("extension_id");
+}
 
 export type ExtensionMessageType =
   | "GET_BLOCKED_SITES"
@@ -141,7 +154,7 @@ export function isExtensionRuntimeAvailable(): boolean {
     typeof chrome !== "undefined" &&
     typeof chrome.runtime !== "undefined" &&
     typeof chrome.runtime.sendMessage === "function" &&
-    EXTENSION_ID.trim().length > 0
+    getExtensionId().length > 0
   );
 }
 
@@ -156,7 +169,7 @@ function sendToExtension<T>(
 
     try {
       chrome.runtime.sendMessage(
-        EXTENSION_ID,
+        getExtensionId(),
         message,
         (response: ExtensionResponse<T>) => {
           if (chrome.runtime.lastError) {
