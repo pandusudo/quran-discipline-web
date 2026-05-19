@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAccessToken } from "@/lib/auth";
+import { getAuthenticatedToken } from "@/lib/auth";
 import { resolveUserFromToken } from "@/lib/user";
 import prisma from "@/lib/prisma";
 import type { BlockHistoryEntry } from "@/lib/extension-bridge";
 
 export async function GET() {
-  const token = await getAccessToken();
+  const token = await getAuthenticatedToken();
   if (!token) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -32,7 +32,7 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const token = await getAccessToken();
+  const token = await getAuthenticatedToken();
   if (!token) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE() {
-  const token = await getAccessToken();
+  const token = await getAuthenticatedToken();
   if (!token) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

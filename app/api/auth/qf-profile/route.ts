@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAccessToken } from "@/lib/auth";
+import { getAuthenticatedToken } from "@/lib/auth";
 
 interface JwtPayload {
   exp: number;
@@ -17,7 +17,7 @@ function decodeTokenPayload(token: string): JwtPayload | null {
 }
 
 export async function GET() {
-  const token = await getAccessToken();
+  const token = await getAuthenticatedToken();
 
   if (!token) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

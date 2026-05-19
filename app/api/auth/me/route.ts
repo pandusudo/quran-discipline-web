@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { getAccessToken } from "@/lib/auth";
+import { getAuthenticatedToken } from "@/lib/auth";
 
 export async function GET() {
   try {
-    const token = await getAccessToken();
+    const token = await getAuthenticatedToken();
     return NextResponse.json({ authenticated: !!token, token: token ?? null });
   } catch {
     return NextResponse.json(

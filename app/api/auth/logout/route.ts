@@ -1,11 +1,17 @@
 import { NextResponse } from "next/server";
-import { clearAccessToken, clearIdToken, getIdToken } from "@/lib/auth";
+import {
+  clearAccessToken,
+  clearIdToken,
+  clearRefreshToken,
+  getIdToken,
+} from "@/lib/auth";
 
 export async function GET() {
   const idToken = (await getIdToken()) ?? "";
 
   await clearAccessToken();
   await clearIdToken();
+  await clearRefreshToken();
 
   const params = new URLSearchParams({
     post_logout_redirect_uri:

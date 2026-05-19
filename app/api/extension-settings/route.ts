@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAccessToken } from "@/lib/auth";
+import { getAuthenticatedToken } from "@/lib/auth";
 import { resolveUserFromToken } from "@/lib/user";
 import prisma from "@/lib/prisma";
 
@@ -25,7 +25,7 @@ function toClientSettings(row: {
 }
 
 export async function GET() {
-  const token = await getAccessToken();
+  const token = await getAuthenticatedToken();
   if (!token) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -47,7 +47,7 @@ export async function GET() {
 }
 
 export async function PUT(req: NextRequest) {
-  const token = await getAccessToken();
+  const token = await getAuthenticatedToken();
   if (!token) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

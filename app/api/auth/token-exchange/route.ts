@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { saveAccessToken, saveIdToken } from "@/lib/auth";
+import { saveAccessToken, saveIdToken, saveRefreshToken } from "@/lib/auth";
 import { decodeJwtPayload, resolveUser } from "@/lib/user";
 
 export async function POST(request: NextRequest) {
@@ -55,9 +55,12 @@ export async function POST(request: NextRequest) {
   const { access_token, id_token, token_type, expires_in, refresh_token } =
     tokenData;
 
-  await saveAccessToken(access_token);
+  await saveAccessToken(access_token, expires_in);
   if (id_token) {
     await saveIdToken(id_token);
+  }
+  if (refresh_token) {
+    await saveRefreshToken(refresh_token);
   }
 
   const idPayload = id_token ? decodeJwtPayload(id_token) : null;

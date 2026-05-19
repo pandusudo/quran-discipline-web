@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAccessToken } from "@/lib/auth";
+import { getAuthenticatedToken } from "@/lib/auth";
 import type { BlockedSite } from "@/hooks/use-blocked-sites";
 import prisma from "@/lib/prisma";
 import { resolveUserFromToken } from "@/lib/user";
@@ -31,7 +31,7 @@ function toClientSite(row: {
 }
 
 export async function GET() {
-  const token = await getAccessToken();
+  const token = await getAuthenticatedToken();
   if (!token) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -47,7 +47,7 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const token = await getAccessToken();
+  const token = await getAuthenticatedToken();
   if (!token) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -100,7 +100,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const token = await getAccessToken();
+  const token = await getAuthenticatedToken();
   if (!token) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

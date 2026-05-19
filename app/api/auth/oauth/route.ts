@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
     client_id: process.env.QURAN_CLIENT_ID ?? "",
     redirect_uri:
       process.env.REDIRECT_URI ?? "http://localhost:3000/auth/callback",
-    scope: process.env.SCOPES ?? "openid user",
+    scope: process.env.SCOPES ?? "openid offline_access user",
     state,
     code_challenge: codeChallenge,
     code_challenge_method: "S256",
