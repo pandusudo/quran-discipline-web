@@ -22,11 +22,12 @@ export async function GET(
       `/resources/translations?language=en`,
     );
 
-    const translationId = (translations.translations || []).map(
-      (translation: any) => {
-        if (translation.language_name === "english") return translation.id;
-      },
-    );
+    const translationId = (translations.translations || [])
+      .filter(
+        (translation: any) =>
+          translation.language_name === "english" && translation.id !== 57,
+      )
+      .map((translation: any) => translation.id);
 
     const reciters = await fetchQuranApi<any>("GET", `/resources/recitations`);
     const reciterId = reciters.recitations[0].id;
