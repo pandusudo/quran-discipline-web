@@ -64,8 +64,9 @@ export async function POST(req: NextRequest) {
   const upserted = await Promise.all(
     sites.map((site) =>
       prisma.blockedSite.upsert({
-        where: { id: site.id },
+        where: { userId_domain: { userId, domain: site.domain } },
         update: {
+          id: site.id,
           domain: site.domain,
           category: site.category,
           enabled: site.enabled,

@@ -74,15 +74,17 @@ export async function dbDeleteSite(id: string): Promise<void> {
 async function writeAllToExtension(sites: BlockedSite[]): Promise<void> {
   if (!isExtensionRuntimeAvailable()) return;
   for (const site of sites) {
-    await updateSiteViaExtension(site.id, site).catch(() => {
-      addSiteViaExtension(
+    const res = await updateSiteViaExtension(site.id, site);
+
+    if (!res.ok) {
+      await addSiteViaExtension(
         site.domain,
         site.category,
         site.blockMode,
         site.timerSeconds,
         site.unlockDurationMinutes,
       );
-    });
+    }
   }
 }
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useBlockedSites, type BlockedSite } from "@/hooks/use-blocked-sites";
+import { useAuth } from "@/hooks/use-auth";
 import { ExtensionRequiredBanner } from "@/components/extension-required-banner";
 import {
   BlockedSitesSkeleton,
@@ -10,6 +11,7 @@ import {
 } from "@/components/blocked-sites";
 
 export default function BlockedSitesPage() {
+  const { isAuthenticated } = useAuth();
   const {
     sites,
     loading,
@@ -19,7 +21,7 @@ export default function BlockedSitesPage() {
     deleteSite,
     addSite,
     updateSiteConfig,
-  } = useBlockedSites();
+  } = useBlockedSites(isAuthenticated);
 
   const enabledCount = sites.filter((s) => s.enabled).length;
 
