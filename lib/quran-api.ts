@@ -1,8 +1,17 @@
-import { unstable_cache } from "next/cache";
+const TOKEN_TTL_MS = 3500 * 1000;
 
-const TOKEN_TTL_SECONDS = 3500;
+interface TokenCache {
+  token: string;
+  expiresAt: number;
+}
 
-const fetchAccessToken = async (): Promise<string | null> => {
+let tokenCache: TokenCache | null = null;
+
+const getQuranAccessToken = async (): Promise<string | null> => {
+  if (tokenCache && Date.now() < tokenCache.expiresAt) {
+    return tokenCache.token;
+  }
+
   const clientId = process.env.QURAN_CLIENT_ID || "";
   const clientSecret = process.env.QURAN_CLIENT_SECRET || "";
 
@@ -32,18 +41,21 @@ const fetchAccessToken = async (): Promise<string | null> => {
     }
 
     const data = await response.json();
-    return data.access_token;
+    const token: string = data.access_token;
+
+    if (!token) {
+      console.error("Quran OAuth response missing access_token");
+      return null;
+    }
+
+    tokenCache = { token, expiresAt: Date.now() + TOKEN_TTL_MS };
+    return token;
   } catch (error) {
     console.error("Error getting Quran access token:", error);
+    tokenCache = null;
     return null;
   }
 };
-
-const getQuranAccessToken = unstable_cache(
-  fetchAccessToken,
-  ["quran-access-token"],
-  { revalidate: TOKEN_TTL_SECONDS },
-);
 
 export const fetchQuranApi = async <T>(
   method: "GET" | "POST" | "PUT" | "DELETE",
