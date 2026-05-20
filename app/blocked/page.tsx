@@ -211,7 +211,10 @@ function BlockedPageContent() {
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio || !verse?.audio?.url) return;
-    audio.src = verse.audio.url;
+    const rawUrl = verse.audio.url;
+    audio.src = rawUrl.startsWith("http")
+      ? rawUrl
+      : `https://audio.qurancdn.com/${rawUrl}`;
     audio.load();
 
     const handleTimeUpdate = () => {
