@@ -12,16 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import {
-  BookOpen,
-  User,
-  ShieldCheck,
-  Loader2,
-  Plug,
-  Check,
-} from "lucide-react";
+import { BookOpen, User, ShieldCheck, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useProfile } from "@/hooks/use-profile";
 import {
@@ -71,37 +62,6 @@ export default function SettingsPage() {
   const [extensionAvailable, setExtensionAvailable] = useState<boolean | null>(
     null,
   );
-
-  const [extensionId, setExtensionId] = useState("");
-  const [extensionIdInput, setExtensionIdInput] = useState("");
-  const [isSavingExtensionId, setIsSavingExtensionId] = useState(false);
-  const [extensionIdSaved, setExtensionIdSaved] = useState(false);
-
-  useEffect(() => {
-    fetch("/api/extension-id")
-      .then((r) => r.json())
-      .then((data: { extensionId: string }) => {
-        setExtensionId(data.extensionId);
-        setExtensionIdInput(data.extensionId);
-      })
-      .catch(() => {});
-  }, []);
-
-  const handleSaveExtensionId = async () => {
-    setIsSavingExtensionId(true);
-    try {
-      await fetch("/api/extension-id", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ extensionId: extensionIdInput }),
-      });
-      setExtensionId(extensionIdInput);
-      setExtensionIdSaved(true);
-      setTimeout(() => setExtensionIdSaved(false), 2000);
-    } finally {
-      setIsSavingExtensionId(false);
-    }
-  };
 
   const loadSettings = useCallback(async () => {
     setIsLoadingSettings(true);
@@ -315,43 +275,6 @@ export default function SettingsPage() {
               Extension not detected. Settings will be stored locally.
             </p>
           )}
-        </CardContent>
-      </Card>
-
-      {/* Extension ID */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <Plug className="size-4 text-muted-foreground" />
-            Extension ID
-          </CardTitle>
-          <CardDescription>
-            Provide your Chrome Extension ID to connect this dashboard with the
-            extension.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex gap-2">
-            <Input
-              value={extensionIdInput}
-              onChange={(e) => setExtensionIdInput(e.target.value)}
-              placeholder="e.g. abcdefghijklmnopqrstuvwxyzabcdef"
-              className="font-mono text-xs"
-            />
-            <Button
-              size="sm"
-              onClick={handleSaveExtensionId}
-              disabled={isSavingExtensionId || extensionIdInput === extensionId}
-            >
-              {isSavingExtensionId ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : extensionIdSaved ? (
-                <Check className="size-4" />
-              ) : (
-                "Save"
-              )}
-            </Button>
-          </div>
         </CardContent>
       </Card>
 
